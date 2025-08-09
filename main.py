@@ -45,30 +45,24 @@ class Editor(TextArea):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.read_only = False
-        self.syntax = ""
+        self.language = ""  # Initialize language for syntax highlighting
 
     def show_file(self, path: Path) -> None:
         try:
             text = path.read_text(errors="replace")
+            self.language = _guess_syntax(path)  # Set syntax highlighting language
+            self.load_text(text)
         except UnicodeDecodeError:
-            text = "[Бинарный файл — редактирование отключено]"
+            self.language = ""
+            self.load_text("[Бинарный файл — редактирование отключено]")
+            self.read_only = True
         except Exception as e:
-            text = f"[Ошибка чтения: {e}]"
-        self.syntax = _guess_syntax(path)
-        self.load_text(text)
+            self.language = ""
+            self.load_text(f"[Ошибка чтения: {e}]")
+            self.read_only = True
 
     def get_text(self) -> str:
-        for attr in ("text", "value"):
-            if hasattr(self, attr):
-                try:
-                    return getattr(self, attr)
-                except Exception:
-                    pass
-        try:
-            return self.document.text  # type: ignore[attr-defined]
-        except Exception:
-            pass
-        return ""
+        return self.text  # TextArea provides `text` property directly
 
 
 def _guess_syntax(path: Path) -> str:
@@ -379,6 +373,7 @@ class TerminalIDE(App):
     def _open_file(self, path: Path) -> None:
         if not self.editor:
             return
+        self.editor.read_only = False  # Reset read_only before loading
         self.editor.show_file(path)
         self.current_file = path
         self._set_dirty(False)
